@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/portfolio-dipesh/static/css/main.39266140.css",
+    "main.js": "/portfolio-dipesh/static/js/main.f3145ed7.js",
+    "index.html": "/portfolio-dipesh/index.html",
+    "main.39266140.css.map": "/portfolio-dipesh/static/css/main.39266140.css.map",
+    "main.f3145ed7.js.map": "/portfolio-dipesh/static/js/main.f3145ed7.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.39266140.css",
+    "static/js/main.f3145ed7.js"
+  ]
+}
