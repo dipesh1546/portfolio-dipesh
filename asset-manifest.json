@@ -1,13 +1,13 @@
 {
   "files": {
     "main.css": "/portfolio-dipesh/static/css/main.39266140.css",
-    "main.js": "/portfolio-dipesh/static/js/main.f3145ed7.js",
+    "main.js": "/portfolio-dipesh/static/js/main.c5edb933.js",
     "index.html": "/portfolio-dipesh/index.html",
     "main.39266140.css.map": "/portfolio-dipesh/static/css/main.39266140.css.map",
-    "main.f3145ed7.js.map": "/portfolio-dipesh/static/js/main.f3145ed7.js.map"
+    "main.c5edb933.js.map": "/portfolio-dipesh/static/js/main.c5edb933.js.map"
   },
   "entrypoints": [
     "static/css/main.39266140.css",
-    "static/js/main.f3145ed7.js"
+    "static/js/main.c5edb933.js"
   ]
 }
