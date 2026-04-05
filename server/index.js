@@ -20,16 +20,20 @@ function loadEnvFiles() {
     path.join(__dirname, ".env"),
   ];
   const loadedFrom = [];
+
   for (const p of paths) {
     if (!fs.existsSync(p)) continue;
     let buf = fs.readFileSync(p);
+
     if (buf.length >= 3 && buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf) {
       buf = buf.subarray(3);
     }
+
     const parsed = dotenv.parse(buf.toString("utf8"));
     Object.assign(process.env, parsed);
     loadedFrom.push(p);
   }
+
   if (loadedFrom.length === 0) {
     console.warn(
       "[contact-api] No env file found. Create one of:\n" +
@@ -50,7 +54,7 @@ const rateLimit = require("express-rate-limit");
 const nodemailer = require("nodemailer");
 const { body, validationResult } = require("express-validator");
 
-// Railway/Render/etc. set PORT. Locally use CONTACT_API_PORT (avoid clashing with CRA dev PORT).
+// Railway/Render/etc. set PORT. Locally use CONTACT_API_PORT.
 const PORT = Number(process.env.PORT || process.env.CONTACT_API_PORT) || 5001;
 const app = express();
 
@@ -65,12 +69,13 @@ app.use(
   cors({
     origin(origin, cb) {
       if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
-      return cb(null, false);
+      return cb(new Error(`CORS blocked for origin: ${origin}`), false);
     },
     methods: ["POST", "OPTIONS", "GET"],
     maxAge: 86400,
   })
 );
+
 app.use(express.json({ limit: "32kb" }));
 
 app.get("/api/health", (_req, res) => {
@@ -95,25 +100,38 @@ function escapeHtml(text) {
 }
 
 let transporter;
+
 function getTransporter() {
   if (transporter) return transporter;
+
   const user = (process.env.GMAIL_USER || "").trim();
   const pass = (process.env.GMAIL_APP_PASSWORD || "").replace(/\s/g, "");
+
   if (!user || !pass) {
     throw new Error("Missing GMAIL_USER or GMAIL_APP_PASSWORD in environment");
   }
+
   transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
-    secure: false, // IMPORTANT for Railway
+    secure: false,
     auth: {
       user,
       pass,
     },
     tls: {
-      rejectUnauthorized: false, // prevents SSL issues
+      rejectUnauthorized: false,
     },
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
   });
+
+  transporter.verify()
+    .then(() => console.log("[contact-api] SMTP verify success"))
+    .catch((e) => console.error("[contact-api] SMTP verify failed:", e));
+
+  return transporter;
 }
 
 app.post(
@@ -145,9 +163,9 @@ app.post(
       const notifyTo = process.env.NOTIFY_EMAIL || process.env.GMAIL_USER;
 
       const transport = getTransporter();
-      const fromAddr = process.env.MAIL_FROM || `"Portfolio" <${process.env.GMAIL_USER}>`;
+      const fromAddr = process.env.GMAIL_USER;
 
-      await transport.sendMail({
+      const info = await transport.sendMail({
         from: fromAddr,
         to: notifyTo,
         replyTo: email,
@@ -159,13 +177,24 @@ app.post(
 <pre style="font-family:sans-serif;white-space:pre-wrap;">${escapeHtml(message)}</pre>`,
       });
 
-      return res.status(200).json({ ok: true });
+      console.log("[contact-api] EMAIL SENT:", info.messageId);
+
+      return res.status(200).json({ ok: true, message: "Message sent successfully!" });
     } catch (err) {
-      console.error("Contact mail error:", err.message);
+      console.error("Contact mail FULL error:", err);
+      console.error("Contact mail message:", err?.message);
+      console.error("Contact mail code:", err?.code);
+      console.error("Contact mail response:", err?.response);
+      console.error("Contact mail command:", err?.command);
+
       const payload = { error: "Could not send message. Try again later." };
-      if (process.env.NODE_ENV !== "production" && err.message) {
-        payload.hint = err.message;
+
+      if (process.env.NODE_ENV !== "production") {
+        payload.hint = err?.message || "Unknown mail error";
+        payload.code = err?.code || null;
+        payload.response = err?.response || null;
       }
+
       return res.status(500).json(payload);
     }
   }
@@ -173,6 +202,7 @@ app.post(
 
 const hasGmailUser = !!(process.env.GMAIL_USER || "").trim();
 const hasGmailPass = !!(process.env.GMAIL_APP_PASSWORD || "").replace(/\s/g, "");
+
 if (!hasGmailUser || !hasGmailPass) {
   console.warn(
     `[contact-api] Gmail env incomplete — GMAIL_USER: ${hasGmailUser ? "ok" : "MISSING"}, ` +
@@ -187,6 +217,7 @@ const serveProdSite =
 
 if (serveProdSite) {
   app.use(express.static(path.join(rootDir, "build")));
+
   app.get("*", (req, res) => {
     if (req.path.startsWith("/api")) {
       return res.status(404).json({ error: "Not found" });
@@ -204,6 +235,7 @@ if (serveProdSite) {
   <p>Checks: <a href="/api/health"><code>GET /api/health</code></a> · form posts to <code>POST /api/contact</code></p>
 </body></html>`);
   });
+
   app.use((req, res) => {
     res.status(404).type("html").send(`<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"/><title>404</title></head>
@@ -219,6 +251,7 @@ const server = app.listen(PORT, () => {
   const mode = serveProdSite ? "production (React + API)" : "dev API only";
   console.log(`[contact-api] ${mode} — http://localhost:${PORT}`);
 });
+
 server.on("error", (err) => {
   if (err.code === "EADDRINUSE") {
     console.error(
