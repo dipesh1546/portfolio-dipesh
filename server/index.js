@@ -104,11 +104,16 @@ function getTransporter() {
   }
   transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: { user, pass },
+    port: 587,
+    secure: false, // IMPORTANT for Railway
+    auth: {
+      user,
+      pass,
+    },
+    tls: {
+      rejectUnauthorized: false, // prevents SSL issues
+    },
   });
-  return transporter;
 }
 
 app.post(
