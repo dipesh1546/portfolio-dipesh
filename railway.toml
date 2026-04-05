@@ -1,0 +1,11 @@
+# Railway: connect repo → set env vars (see .env.example) → deploy
+# https://railway.app
+
+[build]
+builder = "nixpacks"
+buildCommand = "npm run build"
+
+[deploy]
+startCommand = "npm run serve"
+healthcheckPath = "/api/health"
+restartPolicyType = "on_failure"
